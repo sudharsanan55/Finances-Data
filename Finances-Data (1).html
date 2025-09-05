@@ -5,19 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>User Plan & Daily Collection Report</title>
 
-<!-- SheetJS for Excel export (works if your editor allows external scripts) -->
+<!-- SheetJS for Excel export -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
-  /* Layout */
   :root{--accent:#007bff;--muted:#6b7280}
   body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:#f5f6fa;color:#222}
   .container{max-width:980px;margin:28px auto;padding:0 18px}
   h1{font-size:22px;text-align:center;margin-bottom:18px}
-  /* Card */
   .card{background:#fff;border-radius:12px;box-shadow:0 6px 18px rgba(20,20,45,0.06);padding:18px;margin-bottom:22px;border:1px solid rgba(0,0,0,0.03)}
   .card h2{margin:0 0 12px;font-size:18px;color:#111;padding-left:6px;border-left:4px solid var(--accent)}
-  /* Form grid */
   .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
   .form-grid .full{grid-column:1/-1}
   label{display:block;font-size:13px;color:#0f172a;margin-bottom:6px;font-weight:600}
@@ -27,7 +24,6 @@
   .primary:hover{filter:brightness(.95)}
   .actions{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}
   button.ghost{background:#fff;border:1px solid #e5e7eb;padding:8px 12px;border-radius:8px;cursor:pointer}
-  /* Table */
   .table-wrap{margin-top:12px;overflow:auto;border-radius:10px}
   table{width:100%;border-collapse:collapse;font-size:14px;background:#fff}
   thead th{background:var(--accent);color:#fff;padding:10px;text-align:center;font-weight:700}
@@ -59,12 +55,10 @@
           <label>Name</label>
           <input id="userName" type="text" required placeholder="Full name">
         </div>
-
         <div class="full">
           <label>Address</label>
           <textarea id="userAddress" placeholder="Optional"></textarea>
         </div>
-
         <div>
           <label>Phone No</label>
           <input id="userPhone" type="text" placeholder="Phone">
@@ -73,7 +67,6 @@
           <label>Amount</label>
           <input id="userAmount" type="number" min="0" step="0.01" placeholder="0.00">
         </div>
-
         <div>
           <label>Starting Date</label>
           <input id="userStart" type="date">
@@ -87,19 +80,16 @@
             <option value="30">30 Days</option>
           </select>
         </div>
-
         <div>
           <label>Ending Date (Auto)</label>
           <input id="userEnd" type="date" readonly>
         </div>
-
         <div class="full">
           <button type="submit" class="primary">➕ Add User</button>
           <div style="display:inline-block;width:8px"></div>
           <button type="button" id="exportUsers" class="ghost">⬇ Export Users</button>
         </div>
       </form>
-
       <div class="table-wrap">
         <table id="usersTable">
           <thead>
@@ -124,6 +114,9 @@
         <div>
           <label>Number</label>
           <input id="entryNumber" type="text" placeholder="Enter user number">
+          <span id="entryNumberWarning" style="color:red; display:none; font-size:12px; margin-left:5px;">
+            Number already exists for today!
+          </span>
         </div>
         <div>
           <label>Name (auto)</label>
@@ -133,7 +126,6 @@
           <label>Amount</label>
           <input id="entryAmount" type="number" min="0" step="0.01" placeholder="0.00">
         </div>
-
         <div>
           <label>G Pay</label>
           <select id="entryGpay">
@@ -142,7 +134,6 @@
             <option>No</option>
           </select>
         </div>
-
         <div class="full">
           <button type="submit" class="primary">➕ Add Entry</button>
           <div style="display:inline-block;width:8px"></div>
@@ -151,7 +142,6 @@
           <button type="button" id="printBtn" class="ghost">Print</button>
         </div>
       </form>
-
       <div class="table-wrap">
         <table id="entriesTable">
           <thead>
@@ -165,12 +155,10 @@
   </div>
 
 <script>
-/* Single-file app: user plans + daily entries */
 (function () {
   const userKey = 'fin_userPlans_v1';
   const entryKey = 'fin_daily_v1';
 
-  // helpers
   const $ = sel => document.querySelector(sel);
   const todayStr = ()=>{
     const d=new Date();
@@ -180,16 +168,13 @@
   };
   const escapeHtml = s => String(s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]));
 
-  // state
   let users = JSON.parse(localStorage.getItem(userKey) || '[]');
   let entries = JSON.parse(localStorage.getItem(entryKey) || '[]');
 
-  // dom refs
   const usersTbody = $('#usersTbody');
   const entriesTbody = $('#entriesTbody');
   const entriesTotal = $('#entriesTotal');
 
-  // init date fields
   $('#entryDate').value = todayStr();
 
   // ---------- Users ----------
@@ -213,7 +198,6 @@
     });
   }
 
-  // calculate end date when start/plan change
   function calcEndDateValue(start, planDays){
     if(!start || !planDays) return '';
     const d = new Date(start);
@@ -232,7 +216,6 @@
     const number = $('#userNumber').value.trim();
     const name = $('#userName').value.trim();
     if(!number || !name){ alert('Please enter User Number and Name'); return; }
-    // check duplicate number
     if(users.some(u=>u.number === number)){
       if(!confirm('User number already exists. Add duplicate?')) return;
     }
@@ -249,21 +232,18 @@
     users.push(userObj);
     saveUsers();
     renderUsers();
-    // clear form (keep date defaults cleared)
     e.target.reset();
     $('#userEnd').value = '';
   });
 
   $('#exportUsers').addEventListener('click', ()=>{
     if(typeof XLSX !== 'undefined'){
-      // convert to worksheet
       const data = users.map(u => ({Number: u.number, Name: u.name, Address: u.address, Phone: u.phone, Amount: u.amount, 'Start Date': u.startDate, Plan: u.plan, 'End Date': u.endDate}));
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(data);
       XLSX.utils.book_append_sheet(wb, ws, 'Users');
       XLSX.writeFile(wb, `users-${todayStr()}.xlsx`);
     } else {
-      // fallback: CSV
       const rows = [['Number','Name','Address','Phone','Amount','Start Date','Plan','End Date'], ...users.map(u=>[u.number,u.name,u.address,u.phone,u.amount,u.startDate,u.plan,u.endDate])];
       const csv = rows.map(r => r.map(v => (''+v).includes(',')?`"${(''+v).replace(/"/g,'""')}"` : v).join(',')).join('\n');
       const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
@@ -294,7 +274,6 @@
     entriesTotal.textContent = total.toFixed(2);
   }
 
-  // global delete function (exposed for button onclick)
   window.deleteEntry = function(id){
     if(!confirm('Delete this entry?')) return;
     entries = entries.filter(e => e.id !== id);
@@ -302,11 +281,14 @@
     renderEntries();
   };
 
-  // auto fill name when number typed
+  // auto fill + duplicate check while typing
   $('#entryNumber').addEventListener('input', (ev)=>{
     const n = ev.target.value.trim();
     const found = users.find(u => String(u.number) === String(n));
     $('#entryName').value = found ? found.name : '';
+    const today = $('#entryDate').value || todayStr();
+    const duplicate = entries.some(e => e.number === n && e.date === today);
+    $('#entryNumberWarning').style.display = duplicate ? 'inline' : 'none';
   });
 
   // add entry
@@ -315,6 +297,10 @@
     const date = $('#entryDate').value || todayStr();
     const number = $('#entryNumber').value.trim();
     if(!number){ alert('Please enter Number'); return; }
+    if(entries.some(en => en.number === number && en.date === date)){
+      alert('This number already exists for today!');
+      return;
+    }
     const amount = parseFloat($('#entryAmount').value || '0');
     const name = $('#entryName').value.trim();
     const gpay = $('#entryGpay').value || '';
@@ -322,12 +308,11 @@
     entries.push(entryObj);
     saveEntries();
     renderEntries();
-    // reset entry form but keep date as today
     e.target.reset();
     $('#entryDate').value = todayStr();
+    $('#entryNumberWarning').style.display = 'none';
   });
 
-  // export CSV
   $('#exportCSV').addEventListener('click', ()=>{
     if(!entries.length){ alert('No entries to export'); return; }
     const rows = [['Date','Number','Name','Amount','G Pay'], ...entries.map(e=>[e.date,e.number,e.name,Number(e.amount||0).toFixed(2),e.gpay])];
@@ -336,10 +321,9 @@
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `daily-collection-${todayStr()}.csv`; a.click();
   });
 
-  // export XLSX (SheetJS)
   $('#exportXLSX').addEventListener('click', ()=>{
     if(!entries.length){ alert('No entries to export'); return; }
-    if(typeof XLSX === 'undefined'){ alert('Excel export requires the SheetJS library (XLSX). Use CSV if your environment blocks external scripts.'); return; }
+    if(typeof XLSX === 'undefined'){ alert('Excel export requires the SheetJS library.'); return; }
     const data = entries.map(e => ({Date:e.date, Number:e.number, Name:e.name, Amount:Number(e.amount||0).toFixed(2), 'G Pay': e.gpay}));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(data);
@@ -349,10 +333,8 @@
 
   $('#printBtn').addEventListener('click', ()=> window.print());
 
-  // initial render
   renderUsers();
   renderEntries();
-
 })();
 </script>
 </body>
